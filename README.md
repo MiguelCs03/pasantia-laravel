@@ -69,10 +69,6 @@ php artisan serve
 npm run watch
 ```
 
-### Compilar assets para producción
-```bash
-npm run prod
-```
 
 ## Acceso
 
