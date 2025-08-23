@@ -1,0 +1,23 @@
+{
+  "cliente_id": 1,
+  "fecha": "2025-08-23",
+  "estado": "pendiente",
+  "observaciones": "Primera orden de prueba",
+  "detalles": [
+    {
+      "producto": "Producto A",
+      "cantidad": 2,
+      "precio_unitario": 150.50
+    },
+    {
+      "producto": "Producto B",
+      "cantidad": 1,
+      "precio_unitario": 250.75
+    },
+    {
+      "producto": "Producto C",
+      "cantidad": 3,
+      "precio_unitario": 80.25
+    }
+  ]
+}

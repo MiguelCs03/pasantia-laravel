@@ -1,0 +1,11 @@
+Instalar las dependencias de PHP con Composer:
+composer install
+
+Instalar las dependencias:
+npm install --force
+
+Compilar los archivos para desarrollo:
+npm run dev
+
+Activar el modo observador para desarrollo:
+npm run watch
