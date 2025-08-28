@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Orden;
 use App\Models\OrdenDetalle;
+use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class OrdenController extends Controller
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search', '');
         
-        $ordenes = Orden::with(['cliente', 'detalles'])
+        $ordenes = Orden::with(['cliente', 'detalles.producto'])
             ->when($search, function ($query, $search) {
                 return $query->whereHas('cliente', function ($q) use ($search) {
                     $q->where('nombre', 'LIKE', "%{$search}%")
@@ -44,16 +45,19 @@ class OrdenController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        \Log::info('Recibiendo datos para crear orden', $request->all());
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'fecha' => 'required|date',
             'estado' => 'required|in:pendiente,procesando,completado,cancelado',
             'observaciones' => 'nullable|string',
             'detalles' => 'required|array|min:1',
-            'detalles.*.producto' => 'required|string|max:200',
+            'detalles.*.producto_id' => 'required|exists:productos,id',
             'detalles.*.cantidad' => 'required|integer|min:1',
             'detalles.*.precio_unitario' => 'required|numeric|min:0',
         ]);
+
+        \Log::info('Validación de datos completada', $validatedData);
 
         DB::beginTransaction();
         
@@ -66,12 +70,16 @@ class OrdenController extends Controller
                 'observaciones' => $validatedData['observaciones'] ?? null,
                 'total' => 0
             ]);
-
+             \Log::info('Orden creada', ['orden_id' => $orden->id]);
             // Crear los detalles
             foreach ($validatedData['detalles'] as $detalleData) {
+                // Obtener el producto para usar su nombre
+                $producto = Producto::find($detalleData['producto_id']);
+                
                 OrdenDetalle::create([
                     'orden_id' => $orden->id,
-                    'producto' => $detalleData['producto'],
+                    'producto_id' => $detalleData['producto_id'],
+                    'producto' => $producto ? $producto->nombre : 'Producto no encontrado',
                     'cantidad' => $detalleData['cantidad'],
                     'precio_unitario' => $detalleData['precio_unitario'],
                 ]);
@@ -83,6 +91,8 @@ class OrdenController extends Controller
             
             DB::commit();
 
+             \Log::info('Orden completa y transacción confirmada', ['orden_id' => $orden->id]);
+
             return response()->json([
                 'message' => 'Orden creada exitosamente',
                 'data' => $orden
@@ -90,6 +100,13 @@ class OrdenController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
+
+            \Log::error('Error al crear la orden', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $validatedData
+            ]);
+
             return response()->json([
                 'message' => 'Error al crear la orden',
                 'error' => $e->getMessage()
@@ -105,7 +122,7 @@ class OrdenController extends Controller
      */
     public function show(Orden $orden): JsonResponse
     {
-        $orden->load(['cliente', 'detalles']);
+        $orden->load(['cliente', 'detalles.producto']);
         
         return response()->json([
             'data' => $orden
@@ -135,7 +152,7 @@ class OrdenController extends Controller
                 'estado' => 'required|string|in:pendiente,completado,cancelado',
                 'observaciones' => 'nullable|string',
                 'detalles' => 'required|array|min:1',
-                'detalles.*.producto' => 'required|string|max:100',
+                'detalles.*.producto_id' => 'required|exists:productos,id',
                 'detalles.*.cantidad' => 'required|integer|min:1',
                 'detalles.*.precio_unitario' => 'required|numeric|min:0',
             ]);
@@ -176,8 +193,12 @@ class OrdenController extends Controller
             
             // Crear nuevos detalles
             foreach ($request->detalles as $detalle) {
+                // Obtener el producto para usar su nombre
+                $producto = Producto::find($detalle['producto_id']);
+                
                 $orden->detalles()->create([
-                    'producto' => $detalle['producto'],
+                    'producto_id' => $detalle['producto_id'],
+                    'producto' => $producto ? $producto->nombre : 'Producto no encontrado',
                     'cantidad' => $detalle['cantidad'],
                     'precio_unitario' => $detalle['precio_unitario'],
                     'subtotal' => $detalle['cantidad'] * $detalle['precio_unitario'],

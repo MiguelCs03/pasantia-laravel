@@ -16,6 +16,7 @@ class OrdenDetalle extends Model
      */
     protected $fillable = [
         'orden_id',
+        'producto_id',
         'producto',
         'cantidad',
         'precio_unitario',
@@ -41,6 +42,14 @@ class OrdenDetalle extends Model
     public function orden()
     {
         return $this->belongsTo(Orden::class);
+    }
+
+    /**
+     * Get the producto that owns the detalle.
+     */
+    public function producto()
+    {
+        return $this->belongsTo(Producto::class);
     }
 
     /**

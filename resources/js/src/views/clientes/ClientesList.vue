@@ -46,14 +46,14 @@
                 <td>{{ cliente.telefono || 'N/A' }}</td>
                 <td>{{ cliente.direccion }}</td>
                 <td>
-                  <button class="btn btn-info btn-sm" @click="verCliente(cliente)">
-                    Ver
+                  <button class="btn btn-info btn-sm" @click="verCliente(cliente)" title="Ver detalles">
+                    <i class="fas fa-eye"></i>
                   </button>
-                  <button class="btn btn-warning btn-sm ml-1" @click="editarCliente(cliente.id)">
-                    Editar
+                  <button class="btn btn-warning btn-sm ml-1" @click="editarCliente(cliente.id)" title="Editar cliente">
+                    <i class="fas fa-edit"></i>
                   </button>
-                  <button class="btn btn-danger btn-sm ml-1" @click="eliminarCliente(cliente.id)">
-                    Eliminar
+                  <button class="btn btn-danger btn-sm ml-1" @click="eliminarCliente(cliente.id)" title="Eliminar cliente">
+                    <i class="fas fa-trash"></i>
                   </button>
                 </td>
               </tr>

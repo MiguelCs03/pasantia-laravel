@@ -66,8 +66,14 @@
                   <tbody>
                     <tr v-for="(detalle, index) in form.detalles" :key="index">
                       <td>
-                        <input v-model="detalle.producto" type="text" class="form-control" 
-                               placeholder="Nombre del producto" required>
+                        <select v-model="detalle.producto_id" class="form-control" 
+                                @change="seleccionarProducto(index)" required>
+                          <option value="">{{ productos.length > 0 ? 'Seleccionar producto' : 'Cargando productos...' }}</option>
+                          <option v-for="producto in productos" :key="producto.id" :value="producto.id">
+                            {{ producto.nombre }} - ${{ producto.precio }} (Stock: {{ producto.stock }})
+                          </option>
+                        </select>
+                        <small class="text-muted">{{ productos.length }} productos disponibles</small>
                       </td>
                       <td>
                         <input v-model.number="detalle.cantidad" type="number" class="form-control" 
@@ -83,8 +89,8 @@
                       </td>
                       <td>
                         <button type="button" class="btn btn-danger btn-sm" 
-                                @click="eliminarDetalle(index)">
-                          Eliminar
+                                @click="eliminarDetalle(index)" title="Eliminar item">
+                          <i class="fas fa-trash"></i>
                         </button>
                       </td>
                     </tr>
@@ -130,7 +136,7 @@ export default {
         observaciones: '',
         detalles: [
           {
-            producto: '',
+            producto_id: '',
             cantidad: 1,
             precio_unitario: 0,
             subtotal: 0
@@ -138,6 +144,7 @@ export default {
         ]
       },
       clientes: [],
+      productos: [], 
       isEdit: false,
       ordenId: null
     }
@@ -149,6 +156,7 @@ export default {
   },
   async mounted() {
     await this.cargarClientes()
+    await this.cargarProductos() 
     if (this.$route.params.id) {
       this.isEdit = true
       this.ordenId = this.$route.params.id
@@ -168,6 +176,18 @@ export default {
         console.error('Detalles del error:', error.response)
       }
     },
+
+    async cargarProductos() {
+      try {
+        console.log('Cargando productos...')
+        const response = await axios.get('/api/productos-activos')
+        console.log('Respuesta de productos:', response)
+        this.productos = response.data.data
+        console.log('Productos cargados:', this.productos)
+      } catch (error) {
+        console.error('Error cargando productos:', error)
+      }
+    },
     
     async cargarOrden() {
       try {
@@ -181,7 +201,7 @@ export default {
           observaciones: orden.observaciones || '',
           detalles: orden.detalles.map(detalle => ({
             id: detalle.id,
-            producto: detalle.producto,
+            producto_id: detalle.producto_id, 
             cantidad: detalle.cantidad,
             precio_unitario: parseFloat(detalle.precio_unitario),
             subtotal: parseFloat(detalle.subtotal)
@@ -194,11 +214,24 @@ export default {
     
     agregarDetalle() {
       this.form.detalles.push({
-        producto: '',
+        producto_id: '', 
         cantidad: 1,
         precio_unitario: 0,
         subtotal: 0
       })
+    },
+
+    seleccionarProducto(index) {
+      const productoId = this.form.detalles[index].producto_id
+      if (productoId) {
+        const producto = this.productos.find(p => p.id == productoId)
+        if (producto) {
+          // Autocompletado de precio según el producto 
+          this.form.detalles[index].precio_unitario = parseFloat(producto.precio)
+          this.calcularSubtotal(index)
+          console.log('Producto seleccionado:', producto)
+        }
+      }
     },
     
     eliminarDetalle(index) {
@@ -222,11 +255,13 @@ export default {
         
         // Validar detalles
         for (let detalle of this.form.detalles) {
-          if (!detalle.producto || detalle.cantidad <= 0 || detalle.precio_unitario < 0) {
+          if (!detalle.producto_id || detalle.cantidad <= 0 || detalle.precio_unitario < 0) {
             alert('Todos los items deben tener producto, cantidad mayor a 0 y precio válido')
             return
           }
         }
+        
+        console.log('Datos a enviar:', this.form)
         
         if (this.isEdit) {
           await axios.put(`/api/ordenes/${this.ordenId}`, this.form)

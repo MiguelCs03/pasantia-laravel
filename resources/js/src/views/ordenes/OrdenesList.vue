@@ -50,14 +50,14 @@
                 <td>{{ orden.detalles.length }}</td>
                 <td>${{ parseFloat(orden.total).toFixed(2) }}</td>
                 <td>
-                  <button class="btn btn-info btn-sm" @click="verOrden(orden.id)">
-                    Ver
+                  <button class="btn btn-info btn-sm" @click="verOrden(orden.id)" title="Ver detalles">
+                    <i class="fas fa-eye"></i>
                   </button>
-                  <button class="btn btn-warning btn-sm ml-1" @click="editarOrden(orden.id)">
-                    Editar
+                  <button class="btn btn-warning btn-sm ml-1" @click="editarOrden(orden.id)" title="Editar orden">
+                    <i class="fas fa-edit"></i>
                   </button>
-                  <button class="btn btn-danger btn-sm ml-1" @click="eliminarOrden(orden.id)">
-                    Eliminar
+                  <button class="btn btn-danger btn-sm ml-1" @click="eliminarOrden(orden.id)" title="Eliminar orden">
+                    <i class="fas fa-trash"></i>
                   </button>
                 </td>
               </tr>
