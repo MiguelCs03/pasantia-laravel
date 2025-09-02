@@ -19,7 +19,8 @@ class Cliente extends Model
         'apellido', 
         'email',
         'telefono',
-        'direccion'
+        'direccion',
+        'estado'
     ];
 
     /**

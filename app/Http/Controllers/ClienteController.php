@@ -91,4 +91,42 @@ class ClienteController extends Controller
             'message' => 'Cliente eliminado exitosamente'
         ]);
     }
+
+    /**
+     * Cambiar el estado de un cliente
+     */
+    public function cambiarEstado(Request $request, Cliente $cliente): JsonResponse
+    {
+        $request->validate([
+            'estado' => 'required|in:activo,inactivo'
+        ]);
+
+        $cliente->update([
+            'estado' => $request->estado
+        ]);
+
+        return response()->json([
+            'message' => 'Estado del cliente actualizado exitosamente',
+            'data' => $cliente
+        ]);
+    }
+
+    /**
+     * Cambiar el estado de múltiples clientes
+     */
+    public function cambiarEstadoMasivo(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:clientes,id',
+            'estado' => 'required|in:activo,inactivo'
+        ]);
+
+        $count = Cliente::whereIn('id', $request->ids)
+            ->update(['estado' => $request->estado]);
+
+        return response()->json([
+            'message' => "{$count} cliente(s) actualizados exitosamente"
+        ]);
+    }
 }

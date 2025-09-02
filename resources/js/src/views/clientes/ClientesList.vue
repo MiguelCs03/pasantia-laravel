@@ -23,22 +23,54 @@
           </div>
         </div>
 
+        <!-- Botones de acciones múltiples -->
+        <div v-if="clientesSeleccionados.length > 0" class="mb-3 p-3 bg-light border rounded">
+          <div class="d-flex justify-content-between align-items-center">
+            <span>
+              <strong>{{ clientesSeleccionados.length }}</strong> cliente(s) seleccionado(s)
+            </span>
+            <div>
+              <button class="btn btn-warning btn-sm mr-2" @click="cambiarEstadoMasivo('inactivo')" 
+                      v-if="clientesSeleccionados.some(id => obtenerCliente(id).estado === 'activo')">
+                <i class="fas fa-user-slash mr-1"></i>
+                Desactivar Seleccionados
+              </button>
+              <button class="btn btn-success btn-sm mr-2" @click="cambiarEstadoMasivo('activo')" 
+                      v-if="clientesSeleccionados.some(id => obtenerCliente(id).estado === 'inactivo')">
+                <i class="fas fa-user-check mr-1"></i>
+                Activar Seleccionados
+              </button>
+              <button class="btn btn-secondary btn-sm" @click="limpiarSeleccion">
+                <i class="fas fa-times mr-1"></i>
+                Limpiar Selección
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Tabla -->
         <div class="table-responsive">
           <table class="table table-striped">
             <thead>
               <tr>
+                <th width="40">
+                  <input type="checkbox" v-model="seleccionarTodos" @change="toggleSeleccionTodos">
+                </th>
                 <th>ID</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
                 <th>Email</th>
                 <th>Teléfono</th>
                 <th>Dirección</th>
+                <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="cliente in clientes.data" :key="cliente.id">
+              <tr v-for="cliente in clientes.data" :key="cliente.id" :class="{'table-secondary': cliente.estado === 'inactivo'}">
+                <td>
+                  <input type="checkbox" :value="cliente.id" v-model="clientesSeleccionados">
+                </td>
                 <td>{{ cliente.id }}</td>
                 <td>{{ cliente.nombre }}</td>
                 <td>{{ cliente.apellido }}</td>
@@ -46,15 +78,27 @@
                 <td>{{ cliente.telefono || 'N/A' }}</td>
                 <td>{{ cliente.direccion }}</td>
                 <td>
-                  <button class="btn btn-info btn-sm" @click="verCliente(cliente)" title="Ver detalles">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button class="btn btn-warning btn-sm ml-1" @click="editarCliente(cliente.id)" title="Editar cliente">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button class="btn btn-danger btn-sm ml-1" @click="eliminarCliente(cliente.id)" title="Eliminar cliente">
-                    <i class="fas fa-trash"></i>
-                  </button>
+                  <span :class="getEstadoClass(cliente.estado)">
+                    {{ cliente.estado.toUpperCase() }}
+                  </span>
+                </td>
+                <td>
+                  <div class="btn-group-actions">
+                    <button class="btn btn-info btn-sm" @click="verCliente(cliente)" title="Ver detalles">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-warning btn-sm" @click="editarCliente(cliente.id)" title="Editar cliente">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button v-if="cliente.estado === 'activo'" class="btn btn-danger btn-sm" 
+                            @click="cambiarEstado(cliente.id, 'inactivo')" title="Desactivar cliente">
+                      <i class="fas fa-user-slash"></i>
+                    </button>
+                    <button v-else class="btn btn-success btn-sm" 
+                            @click="cambiarEstado(cliente.id, 'activo')" title="Activar cliente">
+                      <i class="fas fa-user-check"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -151,7 +195,9 @@ export default {
       },
       search: '',
       perPage: 10,
-      clienteSeleccionado: null
+      clienteSeleccionado: null,
+      clientesSeleccionados: [],
+      seleccionarTodos: false
     }
   },
   computed: {
@@ -213,6 +259,61 @@ export default {
       this.$router.push(`/clientes/editar/${id}`)
     },
     
+    async cambiarEstado(id, nuevoEstado) {
+      const accion = nuevoEstado === 'activo' ? 'activar' : 'desactivar'
+      if (confirm(`¿Está seguro de ${accion} este cliente?`)) {
+        try {
+          await axios.patch(`/api/clientes/${id}/estado`, { estado: nuevoEstado })
+          alert(`Cliente ${accion === 'activar' ? 'activado' : 'desactivado'} exitosamente`)
+          this.cargarClientes()
+        } catch (error) {
+          console.error(`Error ${accion === 'activar' ? 'activando' : 'desactivando'} cliente:`, error)
+          alert(`Error al ${accion} el cliente`)
+        }
+      }
+    },
+
+    async cambiarEstadoMasivo(nuevoEstado) {
+      const accion = nuevoEstado === 'activo' ? 'activar' : 'desactivar'
+      const cantidad = this.clientesSeleccionados.length
+      
+      if (confirm(`¿Está seguro de ${accion} ${cantidad} cliente(s)?`)) {
+        try {
+          await axios.patch('/api/clientes/estado-masivo', { 
+            ids: this.clientesSeleccionados, 
+            estado: nuevoEstado 
+          })
+          alert(`${cantidad} cliente(s) ${accion === 'activar' ? 'activados' : 'desactivados'} exitosamente`)
+          this.limpiarSeleccion()
+          this.cargarClientes()
+        } catch (error) {
+          console.error(`Error en ${accion} masivo:`, error)
+          alert(`Error al ${accion} los clientes`)
+        }
+      }
+    },
+
+    toggleSeleccionTodos() {
+      if (this.seleccionarTodos) {
+        this.clientesSeleccionados = this.clientes.data.map(cliente => cliente.id)
+      } else {
+        this.clientesSeleccionados = []
+      }
+    },
+
+    limpiarSeleccion() {
+      this.clientesSeleccionados = []
+      this.seleccionarTodos = false
+    },
+
+    obtenerCliente(id) {
+      return this.clientes.data.find(cliente => cliente.id === id) || {}
+    },
+
+    getEstadoClass(estado) {
+      return estado === 'activo' ? 'badge badge-success' : 'badge badge-secondary'
+    },
+    
     async eliminarCliente(id) {
       if (confirm('¿Está seguro de eliminar este cliente?')) {
         try {
@@ -248,6 +349,60 @@ export default {
 
 .modal {
   background-color: rgba(0,0,0,0.5);
+}
+
+.btn-group-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-group-actions .btn {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.table-secondary {
+  background-color: #f8f9fa !important;
+  opacity: 0.7;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.badge-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.bg-light {
+  background-color: #f8f9fa !important;
+}
+
+.border {
+  border: 1px solid #dee2e6 !important;
+}
+
+.rounded {
+  border-radius: 0.375rem !important;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
 }
 
 .d-flex {

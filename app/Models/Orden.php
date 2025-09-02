@@ -23,6 +23,22 @@ class Orden extends Model
     ];
 
     /**
+     *Relacion con la tabla orden_pagos
+     */
+    public function pagos()
+    {
+        return $this->hasMany(OrdenPago::class); 
+    }
+
+    /**
+     * Get the metodos de pago for the orden.
+     */
+    public function metodosPago()
+    {
+        return $this->hasMany(OrdenPago::class);
+    }
+
+    /**
      * The attributes that should be cast.
      *
      * @var array<string, string>

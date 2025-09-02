@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Orden;
 use App\Models\OrdenDetalle;
+use App\Models\OrdenPago;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -55,6 +56,10 @@ class OrdenController extends Controller
             'detalles.*.producto_id' => 'required|exists:productos,id',
             'detalles.*.cantidad' => 'required|integer|min:1',
             'detalles.*.precio_unitario' => 'required|numeric|min:0',
+            'metodos_pago' => 'array',
+            'metodos_pago.*.metodo_pago' => 'required|string',
+            'metodos_pago.*.monto' => 'required|numeric|min:0',
+            'metodos_pago.*.detalles' => 'nullable|string',
         ]);
 
         \Log::info('Validación de datos completada', $validatedData);
@@ -87,7 +92,19 @@ class OrdenController extends Controller
 
             // Calcular el total después de crear todos los detalles
             $orden->calcularTotal();
-            $orden->load(['cliente', 'detalles']);
+            
+            // Crear los métodos de pago si se proporcionaron
+            if (isset($validatedData['metodos_pago'])) {
+                foreach ($validatedData['metodos_pago'] as $metodoPago) {
+                    $orden->metodosPago()->create([
+                        'metodo_pago' => $metodoPago['metodo_pago'],
+                        'monto' => $metodoPago['monto'],
+                        'detalles' => $metodoPago['detalles'] ?? null
+                    ]);
+                }
+            }
+            
+            $orden->load(['cliente', 'detalles', 'metodosPago']);
             
             DB::commit();
 
@@ -155,6 +172,10 @@ class OrdenController extends Controller
                 'detalles.*.producto_id' => 'required|exists:productos,id',
                 'detalles.*.cantidad' => 'required|integer|min:1',
                 'detalles.*.precio_unitario' => 'required|numeric|min:0',
+                'metodos_pago' => 'array',
+                'metodos_pago.*.metodo_pago' => 'required|string',
+                'metodos_pago.*.monto' => 'required|numeric|min:0',
+                'metodos_pago.*.detalles' => 'nullable|string',
             ]);
             
             if ($validator->fails()) {
@@ -191,6 +212,9 @@ class OrdenController extends Controller
             // Eliminar detalles existentes
             $orden->detalles()->delete();
             
+            // Eliminar métodos de pago existentes
+            $orden->metodosPago()->delete();
+            
             // Crear nuevos detalles
             foreach ($request->detalles as $detalle) {
                 // Obtener el producto para usar su nombre
@@ -205,6 +229,17 @@ class OrdenController extends Controller
                 ]);
             }
             
+            // Crear nuevos métodos de pago si se proporcionaron
+            if (isset($request->metodos_pago)) {
+                foreach ($request->metodos_pago as $metodoPago) {
+                    $orden->metodosPago()->create([
+                        'metodo_pago' => $metodoPago['metodo_pago'],
+                        'monto' => $metodoPago['monto'],
+                        'detalles' => $metodoPago['detalles'] ?? null
+                    ]);
+                }
+            }
+            
             DB::commit();
             
             \Log::info('Orden actualizada exitosamente', ['id' => $id]);
@@ -212,7 +247,7 @@ class OrdenController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Orden actualizada exitosamente',
-                'data' => $orden->load(['cliente', 'detalles'])
+                'data' => $orden->load(['cliente', 'detalles', 'metodosPago'])
             ]);
             
         } catch (\Exception $e) {
